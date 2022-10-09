@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
@@ -29,30 +28,18 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	objectsResult, err := bucket.ListObjects()
+	inputObjectKey := "inputs/terraform.tfvars.json"
+	body, err := bucket.GetObject(inputObjectKey)
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
 
-	outputPrefix := "outputs/"
-	for _, object := range objectsResult.Objects {
-		if !strings.HasPrefix(object.Key, outputPrefix) {
-			continue
-		}
-		body, err := bucket.GetObject(object.Key)
-		if err != nil {
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-
-		defer body.Close()
-		var buf bytes.Buffer
-		if _, err := io.Copy(&buf, body); err != nil {
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-		fmt.Fprintf(w, string(buf.Bytes()))
-		break
+	defer body.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, body); err != nil {
+		fmt.Fprintf(w, err.Error())
+		return
 	}
+	fmt.Fprintf(w, string(buf.Bytes()))
 }
