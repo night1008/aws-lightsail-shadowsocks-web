@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 
@@ -28,16 +26,10 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r.Body); err != nil {
+	if err := bucket.PutObject(inputObjectKey, r.Body); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
 
-	if err := bucket.PutObject(inputObjectKey, &buf); err != nil {
-		fmt.Fprintf(w, err.Error())
-		return
-	}
-
-	fmt.Fprintf(w, "success")
+	fmt.Fprintf(w, `{"success": true}`)
 }
