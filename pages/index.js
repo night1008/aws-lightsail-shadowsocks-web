@@ -7,6 +7,8 @@ export default function Home() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  const [configValue, setConfigValue] = useState(null)
+  const [submitTime, setSubmitTime] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -17,7 +19,19 @@ export default function Home() {
         setLoading(false)
         console.log(data)
       })
-  }, [])
+  }, [submitTime])
+
+  function submitConfig(e) {
+    setLoading(true)
+    fetch('/api/submit', {
+      method: "POST",
+      data: configValue
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setSubmitTime(new Date().getTime())
+      })
+  }
 
   return (
     <div className="container">
@@ -63,9 +77,11 @@ export default function Home() {
         {!loading && editMode && (
           <form className="form">
             <div className="mb-3">
-              <textarea className="form-control" rows="20" defaultValue={JSON.stringify(data, null, 4)}></textarea>
+              <textarea className="form-control" rows="20"
+                defaultValue={JSON.stringify(data, null, 4)}
+                onBlur={(e) => setConfigValue(e.target.value)}></textarea>
             </div>
-            <button className="btn btn-primary">提交</button>
+            <button className="btn btn-primary" onClick={submitConfig}>提交</button>
           </form>
         )}
       </main>
