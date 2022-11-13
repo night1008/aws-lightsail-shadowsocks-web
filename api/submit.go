@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -29,6 +31,13 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.URL.Query())
 	fmt.Println(r.PostForm)
 	fmt.Println(bucket)
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r.Body); err != nil {
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+	fmt.Fprintf(w, string(buf.Bytes()))
 
 	// body, err := bucket.PutObject(inputObjectKey, bodyReader)
 	// if err != nil {
