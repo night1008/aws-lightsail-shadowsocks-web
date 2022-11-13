@@ -28,28 +28,16 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(r.URL.Query())
-	fmt.Println(r.PostForm)
-	fmt.Println(bucket)
-
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r.Body); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
-	fmt.Fprintf(w, string(buf.Bytes()))
 
-	// body, err := bucket.PutObject(inputObjectKey, bodyReader)
-	// if err != nil {
-	// 	fmt.Fprintf(w, err.Error())
-	// 	return
-	// }
+	if err := bucket.PutObject(inputObjectKey, &buf); err != nil {
+		fmt.Fprintf(w, err.Error())
+		return
+	}
 
-	// defer body.Close()
-	// var buf bytes.Buffer
-	// if _, err := io.Copy(&buf, body); err != nil {
-	// 	fmt.Fprintf(w, err.Error())
-	// 	return
-	// }
-	// fmt.Fprintf(w, string(buf.Bytes()))
+	fmt.Fprintf(w, "success")
 }
