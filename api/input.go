@@ -10,7 +10,11 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+const (
+	inputObjectKey = "inputs/terraform.tfvars.json"
+)
+
+func InputHandler(w http.ResponseWriter, r *http.Request) {
 	endpoint := os.Getenv("OSS_ENDPOINT")
 	accessKeyID := os.Getenv("OSS_ACCESS_KEY_ID")
 	accessKeySecret := os.Getenv("OSS_ACCESS_KEY_SECRET")
@@ -28,7 +32,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inputObjectKey := "inputs/terraform.tfvars.json"
 	body, err := bucket.GetObject(inputObjectKey)
 	if err != nil {
 		fmt.Fprintf(w, err.Error())
