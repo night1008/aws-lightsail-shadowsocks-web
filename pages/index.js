@@ -1,8 +1,23 @@
 import Head from 'next/head'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 import styles from '../styles/Home.module.css'
 
 export default function Home() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch('/api/date')
+      .then((res) => res.json())
+      .then((data) => {
+        setData(data)
+        setLoading(false)
+        console.log(data)
+      })
+  }, [])
+
   return (
     <div className={styles.container}>
       <Head>
