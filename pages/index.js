@@ -55,7 +55,7 @@ export default function Home() {
           </div>}
         <hr />
 
-        {!loading && !editMode && (
+        {!loading && !editMode && (data?.instances || []).length > 0 && (
           <div className="row row-cols-1 row-cols-md-2 g-4">
             {(data?.instances || []).map((instance) => (
               <div className="col" key={instance.instance_name}>
@@ -72,6 +72,10 @@ export default function Home() {
               </div>
             ))}
           </div>
+        )}
+
+        {!loading && !editMode && (data?.instances || []).length == 0 && (
+          <div className="text-muted text-center pb-3">暂无实例</div>
         )}
 
         {!loading && editMode && (
