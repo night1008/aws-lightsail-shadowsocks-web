@@ -25,7 +25,7 @@ export default function Home() {
     setLoading(true)
     fetch('/api/submit', {
       method: "POST",
-      data: configValue
+      body: configValue
     })
       .then((res) => res.json())
       .then((data) => {
