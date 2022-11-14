@@ -39,6 +39,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	githubAccessToken := os.Getenv("GITHUB_ACCESS_TOKEN")
+	fmt.Println("githubAccessToken ", githubAccessToken)
 	if err := sendGithubWorkflowDispatchRequest(githubAccessToken); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
