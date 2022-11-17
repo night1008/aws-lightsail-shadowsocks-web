@@ -39,8 +39,8 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	githubAccessToken := os.Getenv("GITHUB_ACCESS_TOKEN")
-	fmt.Println("githubAccessToken ", githubAccessToken)
-	if err := sendGithubWorkflowDispatchRequest(githubAccessToken); err != nil {
+	githubRepository := os.Getenv("GITHUB_REPOSITORY")
+	if err := sendGithubWorkflowDispatchRequest(githubAccessToken, githubRepository); err != nil {
 		fmt.Fprintf(w, err.Error())
 		return
 	}
@@ -48,8 +48,8 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"success": true}`)
 }
 
-func sendGithubWorkflowDispatchRequest(githubAccessToken string) error {
-	repositoryURL := "https://api.github.com/repos/night1008/aws-lightsail-shadowsocks-tf/dispatches"
+func sendGithubWorkflowDispatchRequest(accessToken, repository string) error {
+	repositoryURL := fmt.Sprintf("https://api.github.com/repos/%s/dispatches", repository)
 
 	jsonBody := []byte(`{"event_type": "deploy-instances"}`)
 	bodyReader := bytes.NewReader(jsonBody)
@@ -58,7 +58,7 @@ func sendGithubWorkflowDispatchRequest(githubAccessToken string) error {
 		return err
 	}
 	req.Header.Add("Accept", "application/vnd.github+json")
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", githubAccessToken))
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 	client := http.Client{
 		Timeout: 30 * time.Second,

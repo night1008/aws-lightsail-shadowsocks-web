@@ -1,13 +1,31 @@
 import Head from 'next/head'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import Form from 'react-bootstrap/Form'
+import Col from 'react-bootstrap/Col'
+import Row from 'react-bootstrap/Row'
+import Card from 'react-bootstrap/Card'
+import Button from 'react-bootstrap/Button'
+import CloseButton from 'react-bootstrap/CloseButton'
+import FloatingLabel from 'react-bootstrap/FloatingLabel'
 import styles from '../styles/Home.module.css'
+import { shadowsocks_libev_method_options, lightsail_regions, lightsail_availability_zones } from './data'
+
+const defaultInstanceConfig = {
+  "region": "ap-northeast-1",
+  "instance_name": "lightsail-JP",
+  "availability_zone": "ap-northeast-1a",
+  "create_static_ip": true,
+  "shadowsocks_libev_port": 8999,
+  "shadowsocks_libev_password_length": 10,
+  "shadowsocks_libev_method": "chacha20-ietf-poly1305"
+}
 
 export default function Home() {
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [editMode, setEditMode] = useState(false)
-  const [configValue, setConfigValue] = useState(null)
+  const [instanceConfigs, setInstanceConfigs] = useState([])
   const [submitTime, setSubmitTime] = useState(0)
 
   useEffect(() => {
@@ -16,21 +34,48 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         setData(data)
+        setConfigValue(JSON.stringify(data, null, 4))
         setLoading(false)
         console.log(data)
       })
   }, [submitTime])
 
-  function submitConfig(e) {
+  function handleSubmitInstanceConfig(e) {
+    e.preventDefault()
+    e.stopPropagation()
     setLoading(true)
     fetch('/api/submit', {
       method: "POST",
-      body: configValue
+      body: JSON.stringify({"instances": instanceConfigs})
     })
       .then((res) => res.json())
       .then((data) => {
         setSubmitTime(new Date().getTime())
       })
+  }
+
+  function handleAddInstanceConfig() {
+    const configs = [...instanceConfigs]
+    configs.push(Object.assign({}, defaultInstanceConfig))
+    setInstanceConfigs(configs)
+  }
+
+  function handleRemoveInstanceConfig(index, e) {
+    const configs = [...instanceConfigs]
+    configs.splice(index, 1)
+    setInstanceConfigs(configs)
+  }
+
+  function handleInstanceChange(index, attr, e) {
+    const configs = [...instanceConfigs]
+    if (e.currentTarget.type == "checkbox") {
+      configs[index][attr] = e.currentTarget.checked
+    } else if (e.currentTarget.type == "number") {
+      configs[index][attr] = parseFloat(e.currentTarget.value)
+    } else {
+      configs[index][attr] = e.currentTarget.value
+    }
+    setInstanceConfigs(configs)
   }
 
   return (
@@ -79,14 +124,88 @@ export default function Home() {
         )}
 
         {!loading && editMode && (
-          <form className="form">
-            <div className="mb-3">
-              <textarea className="form-control" rows="20"
-                defaultValue={JSON.stringify(data, null, 4)}
-                onBlur={(e) => setConfigValue(e.target.value)}></textarea>
+          <Form onSubmit={handleSubmitInstanceConfig}>
+            {instanceConfigs.map((instance, index) => (
+              <Card className="mb-3" key={index}>
+                <Card.Header>
+                  <CloseButton style={{ "float": "right" }} onClick={(e) => handleRemoveInstanceConfig(index, e)} />
+                  <Row className="row-cols-1 row-cols-md-2" >
+                    <Form.Group style={{ paddingLeft: 0 }}>
+                      <FloatingLabel label="instance name">
+                        <Form.Control type="text" placeholder="instance name" value={instance.instance_name} onChange={(e) => handleInstanceChange(index, 'instance_name', e)} />
+                      </FloatingLabel>
+                    </Form.Group>
+                  </Row>
+                </Card.Header>
+                <Card.Body>
+                  <Row className="row-cols-1 row-cols-md-2">
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label>region</Form.Label>
+                        <Form.Select placeholder="instance name" value={instance.region} onChange={(e) => handleInstanceChange(index, 'region', e)}>
+                          {lightsail_regions.map(option => (
+                            <option value={option.value} key={option.value}>{option.label}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label>availability_zone</Form.Label>
+                        <Form.Select onChange={(e) => handleInstanceChange(index, 'availability_zone', e)}>
+                          {(lightsail_availability_zones[instance.region] || []).map(option => (
+                            <option value={option.value} key={option.value}>{option.label}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row className="row-cols-1 row-cols-md-2">
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label>shadowsocks_libev_method</Form.Label>
+                        <Form.Select onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_method', e)}>
+                          {shadowsocks_libev_method_options.map(option => (
+                            <option value={option.value} key={option.value}>{option.label}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label>shadowsocks_libev_port</Form.Label>
+                        <Form.Control type="number" placeholder="shadowsocks_libev_port" value={instance.shadowsocks_libev_port} onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_port', e)} />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row className="row-cols-1 row-cols-md-2">
+                    <Col>
+                      <Form.Group className="mb-3">
+                        <Form.Label>shadowsocks_libev_password_length</Form.Label>
+                        <Form.Control type="number" placeholder="shadowsocks_libev_password_length" value={instance.shadowsocks_libev_password_length} onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_password_length', e)} />
+                      </Form.Group>
+                    </Col>
+                    <Col>
+                      <Form.Group>
+                        <Form.Label>create_static_ip</Form.Label>
+                        <Form.Check
+                          checked={instance.create_static_ip}
+                          onChange={(e) => handleInstanceChange(index, 'create_static_ip', e)}
+                          type="switch"
+                          label="create_static_ip"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            ))}
+            <div className="d-flex justify-content-between">
+              <Button variant="outline-success" className="mr-auto" onClick={handleAddInstanceConfig}>增加实例</Button>
+              <Button variant="primary" disabled={loading} onClick={(e) => handleSubmitInstanceConfig(e)}>提交配置</Button>
+              <Button style={{ padding: 0, border: 0 }}></Button>
             </div>
-            <button className="btn btn-primary" onClick={submitConfig}>提交</button>
-          </form>
+          </Form>
         )}
       </main>
 
