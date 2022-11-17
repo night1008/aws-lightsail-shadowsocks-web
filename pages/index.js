@@ -33,7 +33,7 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => {
         setData(data)
-        setConfigValue(JSON.stringify(data, null, 4))
+        setInstanceConfigs(data.instances)
         setLoading(false)
         console.log(data)
       })
