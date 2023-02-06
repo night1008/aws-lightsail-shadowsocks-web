@@ -8,6 +8,7 @@ import Card from 'react-bootstrap/Card'
 import Button from 'react-bootstrap/Button'
 import CloseButton from 'react-bootstrap/CloseButton'
 import FloatingLabel from 'react-bootstrap/FloatingLabel'
+import Spinner from 'react-bootstrap/Spinner'
 import styles from '../styles/Home.module.css'
 
 const defaultInstanceConfig = {
@@ -15,7 +16,7 @@ const defaultInstanceConfig = {
   "instance_name": "lightsail-JP",
   "availability_zone": "ap-northeast-1a",
   "create_static_ip": true,
-  "shadowsocks_libev_port": 8999,
+  "shadowsocks_libev_port": 8388,
   "shadowsocks_libev_password_length": 10,
   "shadowsocks_libev_method": "chacha20-ietf-poly1305"
 }
@@ -73,6 +74,9 @@ export default function Home() {
       configs[index][attr] = parseFloat(e.currentTarget.value)
     } else {
       configs[index][attr] = e.currentTarget.value
+      if (attr == "region") {
+        configs[index]["availability_zone"] = lightsail_availability_zones[e.currentTarget.value][0].value
+      }
     }
     setInstanceConfigs(configs)
   }
@@ -91,6 +95,13 @@ export default function Home() {
         <h3 className="text-success text-center py-3">
           Shadowsocks input config
         </h3>
+
+        {loading && !editMode &&
+          <div className="text-center py-3">
+            <Spinner animation="border" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </Spinner>
+          </div>}
 
         {!loading &&
           <div className="form-check form-switch">
