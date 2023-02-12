@@ -31,15 +31,26 @@ type ShadowsocksConfig struct {
 }
 
 type ShadowsocksOutput struct {
-	Remarks    string `json:"remarks"`
-	Type       string `json:"type"`
-	Server     string `json:"server"`
-	ServerPort int    `json:"server_port"`
-	Method     string `json:"method"`
-	Password   string `json:"password"`
-	SSURL      string `json:"ss_url"`
+	Remarks    string                 `json:"remarks"`
+	Type       string                 `json:"type"`
+	Server     string                 `json:"server"`
+	ServerPort int                    `json:"server_port"`
+	Method     string                 `json:"method"`
+	Password   string                 `json:"password"`
+	Plugin     string                 `json:"plugin"`
+	PluginOpts map[string]interface{} `json:"plugin_opts"`
+	SSURL      string                 `json:"ss_url"`
 }
 
+//	{
+//		"server": "134.195.196.230",
+//		"server_port": 9102,
+//		"password": "e4FCWrgpkji3QY",
+//		"method": "aes-256-gcm",
+//		"plugin": "",
+//		"plugin_opts": null,
+//		"remarks": "🇨🇦 Toronto, ON, Canada"
+//	}
 func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
 	server := cfg.StaticIP
 	if server == "" {
