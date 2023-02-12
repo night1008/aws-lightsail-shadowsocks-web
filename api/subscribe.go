@@ -31,13 +31,13 @@ type ShadowsocksConfig struct {
 }
 
 type ShadowsocksOutput struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Server   string `json:"server"`
-	Port     int    `json:"port"`
-	Cipher   string `json:"cipher"`
-	Password string `json:"password"`
-	SSURL    string `json:"ss_url"`
+	Remarks    string `json:"remarks"`
+	Type       string `json:"type"`
+	Server     string `json:"server"`
+	ServerPort int    `json:"server_port"`
+	Method     string `json:"method"`
+	Password   string `json:"password"`
+	SSURL      string `json:"ss_url"`
 }
 
 func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
@@ -46,13 +46,13 @@ func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
 		server = cfg.PublicIPAddress
 	}
 	return &ShadowsocksOutput{
-		Name:     cfg.InstanceName,
-		Type:     "ss",
-		Server:   server,
-		Port:     cfg.ShadowsocksConfig.ServerPort,
-		Cipher:   cfg.ShadowsocksConfig.Method,
-		Password: cfg.ShadowsocksConfig.Password,
-		SSURL:    cfg.SSURL,
+		Remarks:    cfg.InstanceName,
+		Type:       "ss",
+		Server:     server,
+		ServerPort: cfg.ShadowsocksConfig.ServerPort,
+		Method:     cfg.ShadowsocksConfig.Method,
+		Password:   cfg.ShadowsocksConfig.Password,
+		SSURL:      cfg.SSURL,
 	}
 }
 
