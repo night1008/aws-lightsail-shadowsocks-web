@@ -29,6 +29,6 @@ func response(w http.ResponseWriter, statusCode int, data interface{}) {
 }
 
 func getOSSClient(region, accessKey, accessKeySecret string) (*oss.Client, error) {
-	endpoint := fmt.Sprintf("https://oss-%s.aliyuncs.com", region)
+	endpoint := fmt.Sprintf("oss-%s.aliyuncs.com", region)
 	return oss.New(endpoint, accessKey, accessKeySecret)
 }
