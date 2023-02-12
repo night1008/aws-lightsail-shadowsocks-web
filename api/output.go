@@ -14,8 +14,44 @@ const (
 	outputObjectKeyPrefix = "outputs"
 )
 
+type ShadowsocksConfig struct {
+	InstanceName      string `json:"instance_name"`
+	PublicIPAddress   string `json:"public_ip_address"`
+	ShadowsocksConfig struct {
+		LocalPort  int      `json:"local_port"`
+		Method     string   `json:"method"`
+		Mode       string   `json:"mode"`
+		Password   string   `json:"password"`
+		Server     []string `json:"server"`
+		ServerPort int      `json:"server_port"`
+		Timeout    int      `json:"timeout"`
+	} `json:"shadowsocks_config"`
+	StaticIP string `json:"static_ip"`
+	SSURL    string `json:"ss_url"`
+}
+
 type ShadowsocksOutput struct {
-	SSURL string `json:"ss_url"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Server   string `json:"server"`
+	Port     int    `json:"port"`
+	Cipher   string `json:"cipher"`
+	Password string `json:"password"`
+}
+
+func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
+	server := cfg.StaticIP
+	if server == "" {
+		server = cfg.PublicIPAddress
+	}
+	return &ShadowsocksOutput{
+		Name:     cfg.InstanceName,
+		Type:     "ss",
+		Server:   server,
+		Port:     cfg.ShadowsocksConfig.ServerPort,
+		Cipher:   cfg.ShadowsocksConfig.Method,
+		Password: cfg.ShadowsocksConfig.Password,
+	}
 }
 
 func OutputHandler(w http.ResponseWriter, r *http.Request) {
@@ -64,12 +100,12 @@ func OutputHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var output ShadowsocksOutput
-		if err := json.Unmarshal(body, &output); err != nil {
+		var cfg ShadowsocksConfig
+		if err := json.Unmarshal(body, &cfg); err != nil {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
 			return
 		}
-		outputs = append(outputs, &output)
+		outputs = append(outputs, shadowsocksConfigToOutput(&cfg))
 	}
 
 	response(w, http.StatusOK, outputs)
