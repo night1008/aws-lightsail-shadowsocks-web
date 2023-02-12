@@ -73,5 +73,5 @@ func OutputHandler(w http.ResponseWriter, r *http.Request) {
 		ssURLs = append(ssURLs, output.SSURL)
 	}
 
-	response(w, http.StatusInternalServerError, strings.Join(ssURLs, "\n"))
+	response(w, http.StatusOK, strings.Join(ssURLs, "\n"))
 }
