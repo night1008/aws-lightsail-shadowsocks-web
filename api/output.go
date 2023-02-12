@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
@@ -51,7 +50,7 @@ func OutputHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ssURLs []string
+	var outputs []*ShadowsocksOutput
 	for _, o := range listObjects.Objects {
 		object, err := bucket.GetObject(o.Key)
 		if err != nil {
@@ -70,8 +69,8 @@ func OutputHandler(w http.ResponseWriter, r *http.Request) {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
 			return
 		}
-		ssURLs = append(ssURLs, output.SSURL)
+		outputs = append(outputs, &output)
 	}
 
-	response(w, http.StatusOK, strings.Join(ssURLs, "\n"))
+	response(w, http.StatusOK, outputs)
 }
