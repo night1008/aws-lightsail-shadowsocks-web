@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,9 +32,9 @@ type ShadowsocksConfig struct {
 	SSURL    string `json:"ss_url"`
 }
 
-type ShadowsocksOutput struct {
+type ShadowsockServer struct {
+	ID         string                 `json:"id"`
 	Remarks    string                 `json:"remarks"`
-	Type       string                 `json:"type"`
 	Server     string                 `json:"server"`
 	ServerPort int                    `json:"server_port"`
 	Method     string                 `json:"method"`
@@ -42,29 +44,37 @@ type ShadowsocksOutput struct {
 	SSURL      string                 `json:"ss_url"`
 }
 
-//	{
-//		"server": "134.195.196.230",
-//		"server_port": 9102,
-//		"password": "e4FCWrgpkji3QY",
-//		"method": "aes-256-gcm",
-//		"plugin": "",
-//		"plugin_opts": null,
-//		"remarks": "🇨🇦 Toronto, ON, Canada"
-//	}
-func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
+type ShadowsocksOutput struct {
+	Version int                 `json:"version"`
+	Servers []*ShadowsockServer `json:"servers"`
+}
+
+// https://shadowsocks.org/guide/sip008.html
+func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsockServer {
 	server := cfg.StaticIP
 	if server == "" {
 		server = cfg.PublicIPAddress
 	}
-	return &ShadowsocksOutput{
+	s := &ShadowsockServer{
 		Remarks:    cfg.InstanceName,
-		Type:       "ss",
 		Server:     server,
 		ServerPort: cfg.ShadowsocksConfig.ServerPort,
 		Method:     cfg.ShadowsocksConfig.Method,
 		Password:   cfg.ShadowsocksConfig.Password,
 		SSURL:      cfg.SSURL,
 	}
+	s.ID = getShadowsockServerID(s)
+	return s
+}
+
+func getShadowsockServerID(s *ShadowsockServer) string {
+	h := md5.New()
+	h.Write([]byte(s.Remarks))
+	h.Write([]byte(s.Server))
+	h.Write([]byte(fmt.Sprintf("%d", s.ServerPort)))
+	h.Write([]byte(s.Password))
+	h.Write([]byte(s.Method))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +109,9 @@ func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var outputs []*ShadowsocksOutput
+	output := ShadowsocksOutput{
+		Version: 1,
+	}
 	for _, o := range listObjects.Objects {
 		object, err := bucket.GetObject(o.Key)
 		if err != nil {
@@ -118,8 +130,8 @@ func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
 			return
 		}
-		outputs = append(outputs, shadowsocksConfigToOutput(&cfg))
+		output.Servers = append(output.Servers, shadowsocksConfigToOutput(&cfg))
 	}
 
-	response(w, http.StatusOK, outputs)
+	response(w, http.StatusOK, output)
 }
