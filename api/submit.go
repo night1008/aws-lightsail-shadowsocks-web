@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 )
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,36 +14,36 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	endpoint := os.Getenv("OSS_ENDPOINT")
-	accessKeyID := os.Getenv("OSS_ACCESS_KEY_ID")
-	accessKeySecret := os.Getenv("OSS_ACCESS_KEY_SECRET")
-	bucketName := os.Getenv("OSS_BUCKET")
+	region := os.Getenv("ALICLOUD_REGION")
+	accessKey := os.Getenv("ALICLOUD_ACCESS_KEY")
+	accessKeySecret := os.Getenv("ALICLOUD_SECRET_KEY")
+	bucketName := os.Getenv("ALICLOUD_BUCKET")
 
-	client, err := oss.New(endpoint, accessKeyID, accessKeySecret)
+	client, err := getOSSClient(region, accessKey, accessKeySecret)
 	if err != nil {
-		fmt.Fprintf(w, err.Error())
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 
 	bucket, err := client.Bucket(bucketName)
 	if err != nil {
-		fmt.Fprintf(w, err.Error())
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 
 	if err := bucket.PutObject(inputObjectKey, r.Body); err != nil {
-		fmt.Fprintf(w, err.Error())
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 
 	githubAccessToken := os.Getenv("GITHUB_ACCESS_TOKEN")
 	githubRepository := os.Getenv("GITHUB_REPOSITORY")
 	if err := sendGithubWorkflowDispatchRequest(githubAccessToken, githubRepository); err != nil {
-		fmt.Fprintf(w, err.Error())
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 
-	fmt.Fprintf(w, `{"success": true}`)
+	response(w, http.StatusOK, H{"success": true})
 }
 
 func sendGithubWorkflowDispatchRequest(accessToken, repository string) error {
