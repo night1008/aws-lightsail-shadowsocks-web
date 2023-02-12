@@ -37,6 +37,7 @@ type ShadowsocksOutput struct {
 	Port     int    `json:"port"`
 	Cipher   string `json:"cipher"`
 	Password string `json:"password"`
+	SSURL    string `json:"ss_url"`
 }
 
 func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
@@ -51,10 +52,11 @@ func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsocksOutput {
 		Port:     cfg.ShadowsocksConfig.ServerPort,
 		Cipher:   cfg.ShadowsocksConfig.Method,
 		Password: cfg.ShadowsocksConfig.Password,
+		SSURL:    cfg.SSURL,
 	}
 }
 
-func OutputHandler(w http.ResponseWriter, r *http.Request) {
+func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	authToken := os.Getenv("AUTH_TOKEN")
 	values := r.URL.Query()
 	inputAuthToken := values.Get("auth_token")
