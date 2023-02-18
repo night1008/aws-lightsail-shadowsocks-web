@@ -5,12 +5,24 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		fmt.Fprintf(w, "invalid http method")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
+		return
+	}
+	authToken := os.Getenv("AUTH_TOKEN")
+	inputAuthToken := r.FormValue("auth_token")
+	if inputAuthToken != authToken {
+		response(w, http.StatusInternalServerError, H{"error": "invalid auth token"})
 		return
 	}
 
@@ -31,7 +43,9 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := bucket.PutObject(inputObjectKey, r.Body); err != nil {
+	instances := r.FormValue("instances")
+	instancesReader := strings.NewReader(instances)
+	if err := bucket.PutObject(inputObjectKey, instancesReader); err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}

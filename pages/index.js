@@ -27,6 +27,7 @@ export default function Home() {
   const [editMode, setEditMode] = useState(false)
   const [instanceConfigs, setInstanceConfigs] = useState([])
   const [submitTime, setSubmitTime] = useState(0)
+  const [authToken, setAuthToken] = useState("")
 
   useEffect(() => {
     setLoading(true)
@@ -46,7 +47,10 @@ export default function Home() {
     setLoading(true)
     fetch('/api/submit', {
       method: "POST",
-      body: JSON.stringify({"instances": instanceConfigs})
+      body: JSON.stringify({
+        "auth_token": authToken,
+        "instances": instanceConfigs
+      })
     })
       .then((res) => res.json())
       .then((data) => {
@@ -210,6 +214,15 @@ export default function Home() {
                 </Card.Body>
               </Card>
             ))}
+
+            <Row className="mb-3">
+              <Col>
+                <Form.Group style={{ paddingLeft: 0 }}>
+                  <Form.Control type="text" placeholder="auth token" value={authToken} onChange={(e) => setAuthToken(e.currentTarget.value)} />
+                </Form.Group>
+              </Col>
+            </Row>
+
             <div className="d-flex justify-content-between">
               <Button variant="outline-success" className="mr-auto" onClick={handleAddInstanceConfig}>增加实例</Button>
               <Button variant="primary" disabled={loading} onClick={(e) => handleSubmitInstanceConfig(e)}>提交配置</Button>
