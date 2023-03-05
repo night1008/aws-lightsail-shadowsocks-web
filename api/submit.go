@@ -2,12 +2,18 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
+
+type SubmitRequest struct {
+	AuthToken string            `json:"auth_token"`
+	Instances []*InstanceConfig `json:"instances"`
+}
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -15,14 +21,20 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
+		return
+	}
+
+	var req SubmitRequest
+	if err := json.Unmarshal(body, &req); err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 	authToken := os.Getenv("AUTH_TOKEN")
-	inputAuthToken := r.FormValue("auth_token")
-	if inputAuthToken != authToken {
-		response(w, http.StatusForbidden, H{"error": fmt.Sprintf("invalid auth token %s", inputAuthToken)})
+	if req.AuthToken != authToken {
+		response(w, http.StatusForbidden, H{"error": fmt.Sprintf("invalid auth token %s", req.AuthToken)})
 		return
 	}
 
@@ -43,8 +55,12 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	instances := r.FormValue("instances")
-	instancesReader := strings.NewReader(instances)
+	instancesBytes, err := json.Marshal(req.Instances)
+	if err != nil {
+		response(w, http.StatusInternalServerError, H{"error": err.Error()})
+		return
+	}
+	instancesReader := bytes.NewReader(instancesBytes)
 	if err := bucket.PutObject(inputObjectKey, instancesReader); err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
@@ -57,7 +73,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response(w, http.StatusOK, H{"success": true, "inputAuthToken": inputAuthToken, "instances": instances})
+	response(w, http.StatusOK, H{"success": true})
 }
 
 func sendGithubWorkflowDispatchRequest(accessToken, repository string) error {
