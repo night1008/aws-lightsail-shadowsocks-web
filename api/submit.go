@@ -55,7 +55,10 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	instancesBytes, err := json.Marshal(req.Instances)
+	instanceConfigList := InstanceConfigList{
+		Instances: req.Instances,
+	}
+	instancesBytes, err := json.Marshal(instanceConfigList)
 	if err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return

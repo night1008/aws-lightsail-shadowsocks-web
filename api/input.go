@@ -52,6 +52,10 @@ type InstanceConfig struct {
 	ShadowsocksLibevMethod         string `json:"shadowsocks_libev_method"`
 }
 
+type InstanceConfigList struct {
+	Instances []*InstanceConfig `json:"instances"`
+}
+
 func InputHandler(w http.ResponseWriter, r *http.Request) {
 	region := os.Getenv("ALICLOUD_REGION")
 	accessKey := os.Getenv("ALICLOUD_ACCESS_KEY")
@@ -70,14 +74,12 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var inputConfig struct {
-		Instances []*InstanceConfig `json:"instances"`
-	}
+	var instanceConfigList InstanceConfigList
 	object, err := bucket.GetObject(inputObjectKey)
 	if err != nil {
 		// 处理最开始 key 不存在的情况
 		if ossObjectNotExistPattern.MatchString(err.Error()) {
-			response(w, http.StatusOK, inputConfig)
+			response(w, http.StatusOK, instanceConfigList)
 		} else {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		}
@@ -90,10 +92,10 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
-	if err := json.Unmarshal(body, &inputConfig); err != nil {
+	if err := json.Unmarshal(body, &instanceConfigList); err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
 	}
 
-	response(w, http.StatusOK, inputConfig)
+	response(w, http.StatusOK, instanceConfigList)
 }
