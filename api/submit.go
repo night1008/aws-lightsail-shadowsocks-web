@@ -22,7 +22,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	authToken := os.Getenv("AUTH_TOKEN")
 	inputAuthToken := r.FormValue("auth_token")
 	if inputAuthToken != authToken {
-		response(w, http.StatusForbidden, H{"error": "invalid auth token"})
+		response(w, http.StatusForbidden, H{"error": fmt.Sprintf("invalid auth token %s", inputAuthToken)})
 		return
 	}
 
