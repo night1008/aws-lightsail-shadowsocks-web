@@ -79,6 +79,7 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// 处理最开始 key 不存在的情况
 		if ossObjectNotExistPattern.MatchString(err.Error()) {
+			instanceConfigList.Instances = make([]*InstanceConfig, 0)
 			response(w, http.StatusOK, instanceConfigList)
 		} else {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
