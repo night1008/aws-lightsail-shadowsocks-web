@@ -82,7 +82,7 @@ func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	inputAuthToken := values.Get("auth_token")
 	if inputAuthToken != authToken {
-		fmt.Fprintf(w, fmt.Sprintf("invalid auth token"))
+		response(w, http.StatusForbidden, H{"error": "invalid auth token"})
 		return
 	}
 

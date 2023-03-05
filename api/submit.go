@@ -11,7 +11,7 @@ import (
 
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		fmt.Fprintf(w, "invalid http method")
+		response(w, http.StatusBadRequest, H{"error": "invalid http method"})
 		return
 	}
 
@@ -22,7 +22,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	authToken := os.Getenv("AUTH_TOKEN")
 	inputAuthToken := r.FormValue("auth_token")
 	if inputAuthToken != authToken {
-		response(w, http.StatusInternalServerError, H{"error": "invalid auth token"})
+		response(w, http.StatusForbidden, H{"error": "invalid auth token"})
 		return
 	}
 
@@ -57,7 +57,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response(w, http.StatusOK, H{"success": true})
+	response(w, http.StatusOK, H{"success": true, "inputAuthToken": inputAuthToken, "instances": instances})
 }
 
 func sendGithubWorkflowDispatchRequest(accessToken, repository string) error {
