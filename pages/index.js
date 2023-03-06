@@ -54,6 +54,7 @@ export default function Home() {
     })
       .then((res) => res.json())
       .then((data) => {
+        setEditMode(false)
         setSubmitTime(new Date().getTime())
       })
   }
