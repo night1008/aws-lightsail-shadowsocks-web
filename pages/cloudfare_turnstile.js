@@ -1,3 +1,5 @@
+import Head from 'next/head'
+
 export default function CloudfareTurnstile() {
   return (
     <div className="container">
@@ -8,7 +10,7 @@ export default function CloudfareTurnstile() {
       <form action="/login" method="POST">
         <input type="text" placeholder="username" />
         <input type="password" placeholder="password" />
-        <div class="cf-turnstile" data-sitekey="0x4AAAAAAALovSRVqJoLSnud"></div>
+        <div className="cf-turnstile" data-sitekey="0x4AAAAAAALovSRVqJoLSnud"></div>
         <button type="submit" value="Submit">Log in</button>
       </form>
     </div>
