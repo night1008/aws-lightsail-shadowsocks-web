@@ -1,3 +1,5 @@
+# aws-lightsail-shadowsocks-web
+
 本项目是 [aws-lightsail-shadowsocks-tf](https://github.com/night1008/aws-lightsail-shadowsocks-tf) 的可视化配置页面。
 
 ## 整体架构
