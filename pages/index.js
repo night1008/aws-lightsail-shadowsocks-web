@@ -19,7 +19,7 @@ const defaultInstanceConfig = {
   "shadowsocks_libev_password_length": 10,
   "shadowsocks_libev_method": "chacha20-ietf-poly1305",
   "hysteria_enable": true,
-  "hysteria_password_length": 16,
+  "hysteria_password_length": 10,
   "hysteria_proxy_url": "https://bing.com",
   "xray_enable": false,
   "xray_port": 443,
@@ -34,10 +34,16 @@ function normalizeInstanceConfig(instance) {
     ...(instance || {})
   }
 
-  const regionZones = lightsail_availability_zones[config.region] || []
-  const hasAvailabilityZone = regionZones.some((zone) => zone.value === config.availability_zone)
-  if (!hasAvailabilityZone && regionZones.length > 0) {
-    config.availability_zone = regionZones[0].value
+  // 确保 availability_zone 与 region 一致
+  const regionZones = lightsail_availability_zones[config.region]
+  if (regionZones && regionZones.length > 0) {
+    const hasAvailabilityZone = regionZones.some((zone) => zone.value === config.availability_zone)
+    if (!hasAvailabilityZone) {
+      config.availability_zone = regionZones[0].value
+    }
+  } else if (!config.availability_zone && config.region) {
+    // region 不在前端 zone map 中时，根据 region 生成默认 availability_zone
+    config.availability_zone = config.region + "a"
   }
 
   return config
@@ -47,6 +53,14 @@ function validateInstanceConfig(instance, index) {
   const name = instance.instance_name || `#${index + 1}`
   if (!instance.shadowsocks_enable && !instance.hysteria_enable && !instance.xray_enable) {
     return `实例 ${name} 至少开启一个协议`
+  }
+
+  if (!instance.region) {
+    return `实例 ${name} region 不能为空`
+  }
+
+  if (!instance.availability_zone) {
+    return `实例 ${name} availability_zone 不能为空`
   }
 
   // hysteria_proxy_url 格式校验
@@ -172,7 +186,13 @@ export default function Home() {
     const configs = [...instanceConfigs]
     configs[index][attr] = value
     if (attr === "region") {
-      configs[index]["availability_zone"] = lightsail_availability_zones[value][0].value
+      const zones = lightsail_availability_zones[value]
+      if (zones && zones.length > 0) {
+        configs[index]["availability_zone"] = zones[0].value
+      } else {
+        // region 不在前端 zone map 中时，根据 region 生成默认 availability_zone
+        configs[index]["availability_zone"] = value + "a"
+      }
     }
     setFormError("")
     setInstanceConfigs(configs)
@@ -364,6 +384,7 @@ export default function Home() {
                         <div className="space-y-1">
                           <Label>availability_zone</Label>
                           <Select
+                            key={`az-${index}-${instance.region}`}
                             value={instance.availability_zone}
                             onValueChange={(value) => handleInstanceChange(index, 'availability_zone', value)}
                           >

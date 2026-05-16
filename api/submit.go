@@ -95,7 +95,10 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	instanceConfigList := InstanceConfigList{
-		CombinedInstances: req.CombinedInstances,
+		ShadowsocksInstances: make([]*ShadowsocksInstanceConfig, 0),
+		HysteriaInstances:    make([]*HysteriaInstanceConfig, 0),
+		CombinedInstances:    req.CombinedInstances,
+		XrayInstances:        make([]*XrayInstanceConfig, 0),
 	}
 	instancesBytes, err := json.Marshal(instanceConfigList)
 	if err != nil {

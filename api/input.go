@@ -61,8 +61,41 @@ type InstanceConfig struct {
 	XrayPublicKey                  string `json:"xray_public_key"`
 }
 
+type ShadowsocksInstanceConfig struct {
+	Region                         string `json:"region"`
+	InstanceName                   string `json:"instance_name"`
+	AvailabilityZone               string `json:"availability_zone"`
+	CreateStaticIP                 bool   `json:"create_static_ip"`
+	ShadowsocksLibevPort           int    `json:"shadowsocks_libev_port"`
+	ShadowsocksLibevPasswordLength int    `json:"shadowsocks_libev_password_length"`
+	ShadowsocksLibevMethod         string `json:"shadowsocks_libev_method"`
+}
+
+type HysteriaInstanceConfig struct {
+	Region                 string `json:"region"`
+	InstanceName           string `json:"instance_name"`
+	AvailabilityZone       string `json:"availability_zone"`
+	CreateStaticIP         bool   `json:"create_static_ip"`
+	HysteriaPasswordLength int    `json:"hysteria_password_length"`
+	HysteriaProxyURL       string `json:"hysteria_proxy_url"`
+}
+
+type XrayInstanceConfig struct {
+	Region           string `json:"region"`
+	InstanceName     string `json:"instance_name"`
+	AvailabilityZone string `json:"availability_zone"`
+	CreateStaticIP   bool   `json:"create_static_ip"`
+	XrayPort         int    `json:"xray_port"`
+	XrayProxyURL     string `json:"xray_proxy_url"`
+	XrayPrivateKey   string `json:"xray_private_key"`
+	XrayPublicKey    string `json:"xray_public_key"`
+}
+
 type InstanceConfigList struct {
-	CombinedInstances []*InstanceConfig `json:"combined_instances"`
+	ShadowsocksInstances []*ShadowsocksInstanceConfig `json:"shadowsocks_instances"`
+	HysteriaInstances    []*HysteriaInstanceConfig    `json:"hysteria_instances"`
+	CombinedInstances    []*InstanceConfig            `json:"combined_instances"`
+	XrayInstances        []*XrayInstanceConfig        `json:"xray_instances"`
 }
 
 func InputHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,7 +120,10 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 	object, err := bucket.GetObject(inputObjectKey)
 	if err != nil {
 		if ossObjectNotExistPattern.MatchString(err.Error()) {
+			instanceConfigList.ShadowsocksInstances = make([]*ShadowsocksInstanceConfig, 0)
+			instanceConfigList.HysteriaInstances = make([]*HysteriaInstanceConfig, 0)
 			instanceConfigList.CombinedInstances = make([]*InstanceConfig, 0)
+			instanceConfigList.XrayInstances = make([]*XrayInstanceConfig, 0)
 			response(w, http.StatusOK, instanceConfigList)
 		} else {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
@@ -106,8 +142,17 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if instanceConfigList.ShadowsocksInstances == nil {
+		instanceConfigList.ShadowsocksInstances = make([]*ShadowsocksInstanceConfig, 0)
+	}
+	if instanceConfigList.HysteriaInstances == nil {
+		instanceConfigList.HysteriaInstances = make([]*HysteriaInstanceConfig, 0)
+	}
 	if instanceConfigList.CombinedInstances == nil {
 		instanceConfigList.CombinedInstances = make([]*InstanceConfig, 0)
+	}
+	if instanceConfigList.XrayInstances == nil {
+		instanceConfigList.XrayInstances = make([]*XrayInstanceConfig, 0)
 	}
 
 	response(w, http.StatusOK, instanceConfigList)
