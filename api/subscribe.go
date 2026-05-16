@@ -1,8 +1,7 @@
 package handler
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,68 +12,46 @@ import (
 )
 
 const (
-	outputObjectKeyPrefix = "outputs"
+	outputObjectKeyPrefix = "outputs/combined-configs"
 )
 
+// InstanceOutput matches the JSON structure produced by Terraform
+type InstanceOutput struct {
+	InstanceName    string `json:"instance_name"`
+	PublicIPAddress string `json:"public_ip_address"`
+	StaticIP        string `json:"static_ip"`
+
+	ShadowsocksConfig *ShadowsocksConfig `json:"shadowsocks_config"`
+	ShadowsocksURL    *string            `json:"shadowsocks_url"`
+	HysteriaConfig    *HysteriaConfig    `json:"hysteria_config"`
+	HysteriaURL       *string            `json:"hysteria_url"`
+	XrayConfig        *XrayConfig        `json:"xray_config"`
+	XrayURL           *string            `json:"xray_url"`
+}
+
 type ShadowsocksConfig struct {
-	InstanceName      string `json:"instance_name"`
-	PublicIPAddress   string `json:"public_ip_address"`
-	ShadowsocksConfig struct {
-		LocalPort  int      `json:"local_port"`
-		Method     string   `json:"method"`
-		Mode       string   `json:"mode"`
-		Password   string   `json:"password"`
-		Server     []string `json:"server"`
-		ServerPort int      `json:"server_port"`
-		Timeout    int      `json:"timeout"`
-	} `json:"shadowsocks_config"`
-	StaticIP string `json:"static_ip"`
-	SSURL    string `json:"ss_url"`
+	LocalPort  int      `json:"local_port"`
+	Method     string   `json:"method"`
+	Mode       string   `json:"mode"`
+	Password   string   `json:"password"`
+	Server     []string `json:"server"`
+	ServerPort int      `json:"server_port"`
+	Timeout    int      `json:"timeout"`
 }
 
-type ShadowsockServer struct {
-	ID         string                 `json:"id"`
-	Remarks    string                 `json:"remarks"`
-	Server     string                 `json:"server"`
-	ServerPort int                    `json:"server_port"`
-	Method     string                 `json:"method"`
-	Password   string                 `json:"password"`
-	Plugin     string                 `json:"plugin"`
-	PluginOpts map[string]interface{} `json:"plugin_opts"`
-	SSURL      string                 `json:"ss_url"`
+type HysteriaConfig struct {
+	Listen   int    `json:"listen"`
+	Password string `json:"password"`
+	SNI      string `json:"sni"`
+	ProxyURL string `json:"proxy_url"`
 }
 
-type ShadowsocksOutput struct {
-	Version int                 `json:"version"`
-	Servers []*ShadowsockServer `json:"servers"`
-}
-
-// https://shadowsocks.org/guide/sip008.html
-func shadowsocksConfigToOutput(cfg *ShadowsocksConfig) *ShadowsockServer {
-	server := cfg.StaticIP
-	if server == "" {
-		server = cfg.PublicIPAddress
-	}
-	s := &ShadowsockServer{
-		Remarks:    cfg.InstanceName,
-		Server:     server,
-		ServerPort: cfg.ShadowsocksConfig.ServerPort,
-		Method:     cfg.ShadowsocksConfig.Method,
-		Password:   cfg.ShadowsocksConfig.Password,
-		SSURL:      cfg.SSURL,
-	}
-	s.ID = getShadowsockServerID(s)
-	return s
-}
-
-func getShadowsockServerID(s *ShadowsockServer) string {
-	h := md5.New()
-	h.Write([]byte(s.Remarks))
-	h.Write([]byte(s.Server))
-	h.Write([]byte(fmt.Sprintf("%d", s.ServerPort)))
-	h.Write([]byte(s.Password))
-	h.Write([]byte(s.Method))
-	return hex.EncodeToString(h.Sum(nil))
+type XrayConfig struct {
+	Port      int    `json:"port"`
+	UUID      string `json:"uuid"`
+	PublicKey string `json:"public_key"`
+	SNI       string `json:"sni"`
+	ProxyURL  string `json:"proxy_url"`
 }
 
 func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,9 +86,7 @@ func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output := ShadowsocksOutput{
-		Version: 1,
-	}
+	var urls []string
 	for _, o := range listObjects.Objects {
 		object, err := bucket.GetObject(o.Key)
 		if err != nil {
@@ -125,13 +100,34 @@ func SubscribeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var cfg ShadowsocksConfig
-		if err := json.Unmarshal(body, &cfg); err != nil {
+		var instance InstanceOutput
+		if err := json.Unmarshal(body, &instance); err != nil {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
 			return
 		}
-		output.Servers = append(output.Servers, shadowsocksConfigToOutput(&cfg))
+
+		if instance.ShadowsocksURL != nil && *instance.ShadowsocksURL != "" {
+			urls = append(urls, *instance.ShadowsocksURL)
+		}
+		if instance.HysteriaURL != nil && *instance.HysteriaURL != "" {
+			urls = append(urls, *instance.HysteriaURL)
+		}
+		if instance.XrayURL != nil && *instance.XrayURL != "" {
+			urls = append(urls, *instance.XrayURL)
+		}
 	}
 
-	response(w, http.StatusOK, output)
+	// Shadowrocket-compatible subscription: base64 encoded, one URL per line
+	plainText := []byte{}
+	for i, u := range urls {
+		if i > 0 {
+			plainText = append(plainText, '\n')
+		}
+		plainText = append(plainText, []byte(u)...)
+	}
+	encoded := base64.StdEncoding.EncodeToString(plainText)
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, encoded)
 }

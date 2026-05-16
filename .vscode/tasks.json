@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "shadcn init & add components",
+			"type": "shell",
+			"command": "rm -rf components/ui && npm install && npx shadcn@latest init --yes --defaults && npx shadcn@latest add button card input label select switch alert --yes"
+		},
+		{
+			"label": "Install deps",
+			"type": "shell",
+			"command": "rm -rf components/ui && npm install"
+		}
+	]
+}

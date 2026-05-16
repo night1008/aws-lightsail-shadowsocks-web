@@ -1,24 +1,68 @@
 import Head from 'next/head'
-import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import Form from 'react-bootstrap/Form'
-import Col from 'react-bootstrap/Col'
-import Row from 'react-bootstrap/Row'
-import Card from 'react-bootstrap/Card'
-import Button from 'react-bootstrap/Button'
-import CloseButton from 'react-bootstrap/CloseButton'
-import FloatingLabel from 'react-bootstrap/FloatingLabel'
-import Spinner from 'react-bootstrap/Spinner'
-import styles from '../styles/Home.module.css'
+import { Loader2, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const defaultInstanceConfig = {
   "region": "ap-northeast-1",
-  "instance_name": "lightsail-JP",
+  "instance_name": "instance-1",
   "availability_zone": "ap-northeast-1a",
-  "create_static_ip": true,
+  "create_static_ip": false,
+  "shadowsocks_enable": true,
   "shadowsocks_libev_port": 8388,
   "shadowsocks_libev_password_length": 10,
-  "shadowsocks_libev_method": "chacha20-ietf-poly1305"
+  "shadowsocks_libev_method": "chacha20-ietf-poly1305",
+  "hysteria_enable": true,
+  "hysteria_password_length": 16,
+  "hysteria_proxy_url": "https://bing.com",
+  "xray_enable": false,
+  "xray_port": 443,
+  "xray_proxy_url": "https://www.google.com",
+  "xray_private_key": "",
+  "xray_public_key": ""
+}
+
+function normalizeInstanceConfig(instance) {
+  const config = {
+    ...defaultInstanceConfig,
+    ...(instance || {})
+  }
+
+  const regionZones = lightsail_availability_zones[config.region] || []
+  const hasAvailabilityZone = regionZones.some((zone) => zone.value === config.availability_zone)
+  if (!hasAvailabilityZone && regionZones.length > 0) {
+    config.availability_zone = regionZones[0].value
+  }
+
+  return config
+}
+
+function validateInstanceConfig(instance, index) {
+  const name = instance.instance_name || `#${index + 1}`
+  if (!instance.shadowsocks_enable && !instance.hysteria_enable && !instance.xray_enable) {
+    return `实例 ${name} 至少开启一个协议`
+  }
+
+  const usedPorts = {}
+  if (instance.shadowsocks_enable) {
+    usedPorts[instance.shadowsocks_libev_port] = 'shadowsocks'
+  }
+
+  if (instance.xray_enable) {
+    const protocol = usedPorts[instance.xray_port]
+    if (protocol) {
+      return `实例 ${name} 端口冲突: ${instance.xray_port} (${protocol} 与 xray)`
+    }
+    usedPorts[instance.xray_port] = 'xray'
+  }
+
+  return null
 }
 
 export default function Home() {
@@ -28,22 +72,40 @@ export default function Home() {
   const [instanceConfigs, setInstanceConfigs] = useState([])
   const [submitTime, setSubmitTime] = useState(0)
   const [authToken, setAuthToken] = useState("")
+  const [formError, setFormError] = useState("")
 
   useEffect(() => {
     setLoading(true)
     fetch('/api/input')
       .then((res) => res.json())
       .then((data) => {
-        setData(data)
-        setInstanceConfigs(data.instances)
+        const normalizedInstances = (data.instances || []).map((instance) => normalizeInstanceConfig(instance))
+        setData({
+          ...data,
+          instances: normalizedInstances
+        })
+        setInstanceConfigs(normalizedInstances)
         setLoading(false)
-        console.log(data)
+      })
+      .catch(() => {
+        setLoading(false)
+        setFormError('加载配置失败')
       })
   }, [submitTime])
 
   function handleSubmitInstanceConfig(e) {
     e.preventDefault()
     e.stopPropagation()
+
+    for (let i = 0; i < instanceConfigs.length; i++) {
+      const err = validateInstanceConfig(instanceConfigs[i], i)
+      if (err) {
+        setFormError(err)
+        return
+      }
+    }
+
+    setFormError("")
     setLoading(true)
     fetch('/api/submit', {
       method: "POST",
@@ -54,192 +116,369 @@ export default function Home() {
     })
       .then((res) => res.json())
       .then((data) => {
+        if (data.error) {
+          setLoading(false)
+          setFormError(data.error)
+          return
+        }
         setEditMode(false)
+        setFormError("")
         setSubmitTime(new Date().getTime())
+      })
+      .catch(() => {
+        setLoading(false)
+        setFormError('提交失败')
       })
   }
 
   function handleAddInstanceConfig() {
     const configs = [...instanceConfigs]
-    configs.push(Object.assign({}, defaultInstanceConfig))
+    configs.push(Object.assign({}, defaultInstanceConfig, {
+      instance_name: `instance-${configs.length + 1}`
+    }))
     setInstanceConfigs(configs)
   }
 
-  function handleRemoveInstanceConfig(index, e) {
+  function handleRemoveInstanceConfig(index) {
     const configs = [...instanceConfigs]
     configs.splice(index, 1)
     setInstanceConfigs(configs)
   }
 
-  function handleInstanceChange(index, attr, e) {
+  function handleInstanceChange(index, attr, value) {
     const configs = [...instanceConfigs]
-    if (e.currentTarget.type == "checkbox") {
-      configs[index][attr] = e.currentTarget.checked
-    } else if (e.currentTarget.type == "number") {
-      configs[index][attr] = parseFloat(e.currentTarget.value)
-    } else {
-      configs[index][attr] = e.currentTarget.value
-      if (attr == "region") {
-        configs[index]["availability_zone"] = lightsail_availability_zones[e.currentTarget.value][0].value
-      }
+    configs[index][attr] = value
+    if (attr === "region") {
+      configs[index]["availability_zone"] = lightsail_availability_zones[value][0].value
     }
+    setFormError("")
     setInstanceConfigs(configs)
   }
 
   return (
-    <div className="container">
+    <div className="min-h-screen bg-muted/30">
       <Head>
         <title>Shadowsocks config</title>
-        <meta charset="utf-8" />
+        <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="description" content="Generated by create next app" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main>
-        <h3 className="text-success text-center py-3">
-          Shadowsocks input config
-        </h3>
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto max-w-5xl px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="font-semibold text-sm">Shadowsocks Config</span>
+          </div>
+          {!loading && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="edit-mode" className="text-sm text-muted-foreground cursor-pointer">
+                {editMode ? '关闭编辑' : '开启编辑'}
+              </Label>
+              <Switch
+                id="edit-mode"
+                checked={editMode}
+                onCheckedChange={(checked) => setEditMode(checked)}
+              />
+            </div>
+          )}
+        </div>
+      </header>
 
-        {loading && !editMode &&
-          <div className="text-center py-3">
-            <Spinner animation="border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </Spinner>
-          </div>}
+      <main className="container mx-auto max-w-5xl px-4 py-8">
+        {loading && !editMode && (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
 
-        {!loading &&
-          <div className="form-check form-switch">
-            <input className="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault" onClick={() => setEditMode(!editMode)} />
-            <label className="form-check-label" htmlFor="flexSwitchCheckDefault">{editMode ? '关闭' : '开启'}编辑</label>
-          </div>}
-        <hr />
-
+        {/* 查看模式 */}
         {!loading && !editMode && (data?.instances || []).length > 0 && (
-          <div className="row row-cols-1 row-cols-md-2 g-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(data?.instances || []).map((instance) => (
-              <div className="col" key={instance.instance_name}>
-                <div className="card">
-                  <div className="card-header">
-                    {instance.instance_name}
+              <Card key={instance.instance_name} className="overflow-hidden">
+                <CardHeader className="bg-muted/40 border-b">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    <span className="font-medium text-sm">{instance.instance_name}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{instance.region}</span>
                   </div>
-                  <div className="card-body">
-                    <pre className="card-text">
-                      {JSON.stringify(instance, null, 4)}
-                    </pre>
-                  </div>
-                </div>
-              </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <pre className="text-xs text-muted-foreground p-4 whitespace-pre-wrap break-all leading-relaxed">
+                    {JSON.stringify(instance, null, 4)}
+                  </pre>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
 
-        {!loading && !editMode && (data?.instances || []).length == 0 && (
-          <div className="text-muted text-center pb-3">暂无实例</div>
+        {!loading && !editMode && (data?.instances || []).length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
+            <div className="text-4xl">🌐</div>
+            <p className="text-sm">暂无实例，开启编辑后添加</p>
+          </div>
         )}
 
+        {/* 编辑模式 */}
         {!loading && editMode && (
-          <Form onSubmit={handleSubmitInstanceConfig}>
+          <form onSubmit={handleSubmitInstanceConfig}>
+            {formError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            )}
+
             {instanceConfigs.map((instance, index) => (
-              <Card className="mb-3" key={index}>
-                <Card.Header>
-                  <CloseButton style={{ "float": "right" }} onClick={(e) => handleRemoveInstanceConfig(index, e)} />
-                  <Row className="row-cols-1 row-cols-md-2" >
-                    <Form.Group style={{ paddingLeft: 0 }}>
-                      <FloatingLabel label="instance name">
-                        <Form.Control type="text" placeholder="instance name" value={instance.instance_name} onChange={(e) => handleInstanceChange(index, 'instance_name', e)} />
-                      </FloatingLabel>
-                    </Form.Group>
-                  </Row>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="row-cols-1 row-cols-md-2">
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label>region</Form.Label>
-                        <Form.Select placeholder="instance name" value={instance.region} onChange={(e) => handleInstanceChange(index, 'region', e)}>
-                          {lightsail_regions.map(option => (
-                            <option value={option.value} key={option.value}>{option.label}</option>
-                          ))}
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label>availability_zone</Form.Label>
-                        <Form.Select onChange={(e) => handleInstanceChange(index, 'availability_zone', e)}>
-                          {(lightsail_availability_zones[instance.region] || []).map(option => (
-                            <option value={option.value} key={option.value}>{option.label}</option>
-                          ))}
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                  <Row className="row-cols-1 row-cols-md-2">
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label>shadowsocks_libev_method</Form.Label>
-                        <Form.Select onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_method', e)}>
-                          {shadowsocks_libev_method_options.map(option => (
-                            <option value={option.value} key={option.value}>{option.label}</option>
-                          ))}
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label>shadowsocks_libev_port</Form.Label>
-                        <Form.Control type="number" placeholder="shadowsocks_libev_port" value={instance.shadowsocks_libev_port} onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_port', e)} />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                  <Row className="row-cols-1 row-cols-md-2">
-                    <Col>
-                      <Form.Group className="mb-3">
-                        <Form.Label>shadowsocks_libev_password_length</Form.Label>
-                        <Form.Control type="number" placeholder="shadowsocks_libev_password_length" value={instance.shadowsocks_libev_password_length} onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_password_length', e)} />
-                      </Form.Group>
-                    </Col>
-                    <Col>
-                      <Form.Group>
-                        <Form.Label>create_static_ip</Form.Label>
-                        <Form.Check
-                          checked={instance.create_static_ip}
-                          onChange={(e) => handleInstanceChange(index, 'create_static_ip', e)}
-                          type="switch"
-                          label="create_static_ip"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </Card.Body>
+              <Card className="mb-5 shadow-sm" key={index}>
+                <CardHeader className="bg-muted/30 border-b">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full">#{index + 1}</span>
+                    <div className="flex-1 max-w-xs">
+                      <Input
+                        type="text"
+                        placeholder="instance name"
+                        value={instance.instance_name}
+                        onChange={(e) => handleInstanceChange(index, 'instance_name', e.target.value)}
+                        className="h-8 font-medium"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemoveInstanceConfig(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 基础配置 */}
+                  <Card className="bg-muted/20">
+                    <CardHeader className="border-b">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">基础配置</span>
+                    </CardHeader>
+                    <CardContent className="py-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                        <div className="space-y-1">
+                          <Label>region</Label>
+                          <Select
+                            value={instance.region}
+                            onValueChange={(value) => handleInstanceChange(index, 'region', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {lightsail_regions.map(option => (
+                                <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label>availability_zone</Label>
+                          <Select
+                            value={instance.availability_zone}
+                            onValueChange={(value) => handleInstanceChange(index, 'availability_zone', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(lightsail_availability_zones[instance.region] || []).map(option => (
+                                <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label>create_static_ip</Label>
+                          <div className="flex items-center h-9">
+                            <Switch
+                              checked={instance.create_static_ip}
+                              onCheckedChange={(checked) => handleInstanceChange(index, 'create_static_ip', checked)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 协议配置 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Shadowsocks */}
+                    <Card className={`flex flex-col transition-opacity ${!instance.shadowsocks_enable ? 'opacity-60' : ''}`}>
+                      <CardHeader className="border-b bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${instance.shadowsocks_enable ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                            <span className="font-semibold text-sm">Shadowsocks</span>
+                          </div>
+                          <Switch
+                            checked={instance.shadowsocks_enable}
+                            onCheckedChange={(checked) => handleInstanceChange(index, 'shadowsocks_enable', checked)}
+                          />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">shadowsocks_libev_method</Label>
+                          <Select
+                            value={instance.shadowsocks_libev_method}
+                            onValueChange={(value) => handleInstanceChange(index, 'shadowsocks_libev_method', value)}
+                            disabled={!instance.shadowsocks_enable}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {shadowsocks_libev_method_options.map(option => (
+                                <SelectItem value={option.value} key={option.value}>{option.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">shadowsocks_libev_port</Label>
+                          <Input
+                            type="number"
+                            value={instance.shadowsocks_libev_port}
+                            onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_port', parseInt(e.target.value) || 0)}
+                            disabled={!instance.shadowsocks_enable}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">shadowsocks_libev_password_length</Label>
+                          <Input
+                            type="number"
+                            value={instance.shadowsocks_libev_password_length}
+                            onChange={(e) => handleInstanceChange(index, 'shadowsocks_libev_password_length', parseInt(e.target.value) || 0)}
+                            disabled={!instance.shadowsocks_enable}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Hysteria */}
+                    <Card className={`flex flex-col transition-opacity ${!instance.hysteria_enable ? 'opacity-60' : ''}`}>
+                      <CardHeader className="border-b bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${instance.hysteria_enable ? 'bg-blue-500' : 'bg-muted-foreground'}`} />
+                            <span className="font-semibold text-sm">Hysteria</span>
+                          </div>
+                          <Switch
+                            checked={instance.hysteria_enable}
+                            onCheckedChange={(checked) => handleInstanceChange(index, 'hysteria_enable', checked)}
+                          />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">hysteria_password_length</Label>
+                          <Input
+                            type="number"
+                            value={instance.hysteria_password_length}
+                            onChange={(e) => handleInstanceChange(index, 'hysteria_password_length', parseInt(e.target.value) || 0)}
+                            disabled={!instance.hysteria_enable}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">hysteria_proxy_url</Label>
+                          <Input
+                            type="text"
+                            value={instance.hysteria_proxy_url}
+                            onChange={(e) => handleInstanceChange(index, 'hysteria_proxy_url', e.target.value)}
+                            disabled={!instance.hysteria_enable}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Xray */}
+                    <Card className={`flex flex-col transition-opacity ${!instance.xray_enable ? 'opacity-60' : ''}`}>
+                      <CardHeader className="border-b bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${instance.xray_enable ? 'bg-purple-500' : 'bg-muted-foreground'}`} />
+                            <span className="font-semibold text-sm">Xray</span>
+                          </div>
+                          <Switch
+                            checked={instance.xray_enable}
+                            onCheckedChange={(checked) => handleInstanceChange(index, 'xray_enable', checked)}
+                          />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">xray_port</Label>
+                          <Input
+                            type="number"
+                            value={instance.xray_port}
+                            onChange={(e) => handleInstanceChange(index, 'xray_port', parseInt(e.target.value) || 0)}
+                            disabled={!instance.xray_enable}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">xray_proxy_url</Label>
+                          <Input
+                            type="text"
+                            value={instance.xray_proxy_url}
+                            onChange={(e) => handleInstanceChange(index, 'xray_proxy_url', e.target.value)}
+                            disabled={!instance.xray_enable}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">xray_private_key</Label>
+                          <Input
+                            type="text"
+                            value={instance.xray_private_key}
+                            onChange={(e) => handleInstanceChange(index, 'xray_private_key', e.target.value)}
+                            disabled={!instance.xray_enable}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">xray_public_key</Label>
+                          <Input
+                            type="text"
+                            value={instance.xray_public_key}
+                            onChange={(e) => handleInstanceChange(index, 'xray_public_key', e.target.value)}
+                            disabled={!instance.xray_enable}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
               </Card>
             ))}
 
-            <Row className="mb-3">
-              <Col>
-                <Form.Group style={{ paddingLeft: 0 }}>
-                  <Form.Control type="text" placeholder="auth token" value={authToken} onChange={(e) => setAuthToken(e.currentTarget.value)} />
-                </Form.Group>
-              </Col>
-            </Row>
-
-            <div className="d-flex justify-content-between">
-              <Button variant="outline-success" className="mr-auto" onClick={handleAddInstanceConfig}>增加实例</Button>
-              <Button variant="primary" disabled={loading} onClick={(e) => handleSubmitInstanceConfig(e)}>提交配置</Button>
-              <Button style={{ padding: 0, border: 0 }}></Button>
+            <div className="border rounded-xl p-4 bg-background flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Input
+                type="password"
+                placeholder="Auth Token"
+                value={authToken}
+                onChange={(e) => setAuthToken(e.target.value)}
+                className="flex-1"
+              />
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={handleAddInstanceConfig} className="flex-1 sm:flex-none">
+                  + 增加实例
+                </Button>
+                <Button type="submit" disabled={loading} className="flex-1 sm:flex-none">
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  提交配置
+                </Button>
+              </div>
             </div>
-          </Form>
+          </form>
         )}
       </main>
-
-      <footer className={styles.footer}>
-        Powered by{' '}
-        <span className={styles.logo}>
-          <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-        </span>
-      </footer>
-    </div >
+    </div>
   )
 }
 

@@ -15,6 +15,40 @@ type SubmitRequest struct {
 	Instances []*InstanceConfig `json:"instances"`
 }
 
+func validateInstances(instances []*InstanceConfig) error {
+	for idx, instance := range instances {
+		if instance == nil {
+			continue
+		}
+
+		instanceName := instance.InstanceName
+		if instanceName == "" {
+			instanceName = fmt.Sprintf("#%d", idx+1)
+		}
+
+		if !instance.ShadowsocksEnable && !instance.HysteriaEnable && !instance.XrayEnable {
+			return fmt.Errorf("instance %s should enable at least one protocol", instanceName)
+		}
+
+		usedPorts := map[int]string{}
+		if instance.ShadowsocksEnable {
+			if protocol, exists := usedPorts[instance.ShadowsocksLibevPort]; exists {
+				return fmt.Errorf("instance %s has port conflict: %d between %s and shadowsocks", instanceName, instance.ShadowsocksLibevPort, protocol)
+			}
+			usedPorts[instance.ShadowsocksLibevPort] = "shadowsocks"
+		}
+
+		if instance.XrayEnable {
+			if protocol, exists := usedPorts[instance.XrayPort]; exists {
+				return fmt.Errorf("instance %s has port conflict: %d between %s and xray", instanceName, instance.XrayPort, protocol)
+			}
+			usedPorts[instance.XrayPort] = "xray"
+		}
+	}
+
+	return nil
+}
+
 func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		response(w, http.StatusBadRequest, H{"error": "invalid http method"})
@@ -35,6 +69,11 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	authToken := os.Getenv("AUTH_TOKEN")
 	if req.AuthToken != authToken {
 		response(w, http.StatusForbidden, H{"error": fmt.Sprintf("invalid auth token %s", req.AuthToken)})
+		return
+	}
+
+	if err := validateInstances(req.Instances); err != nil {
+		response(w, http.StatusBadRequest, H{"error": err.Error()})
 		return
 	}
 

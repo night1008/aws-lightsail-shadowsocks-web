@@ -47,9 +47,18 @@ type InstanceConfig struct {
 	InstanceName                   string `json:"instance_name"`
 	AvailabilityZone               string `json:"availability_zone"`
 	CreateStaticIP                 bool   `json:"create_static_ip"`
+	ShadowsocksEnable              bool   `json:"shadowsocks_enable"`
 	ShadowsocksLibevPort           int    `json:"shadowsocks_libev_port"`
 	ShadowsocksLibevPasswordLength int    `json:"shadowsocks_libev_password_length"`
 	ShadowsocksLibevMethod         string `json:"shadowsocks_libev_method"`
+	HysteriaEnable                 bool   `json:"hysteria_enable"`
+	HysteriaPasswordLength         int    `json:"hysteria_password_length"`
+	HysteriaProxyURL               string `json:"hysteria_proxy_url"`
+	XrayEnable                     bool   `json:"xray_enable"`
+	XrayPort                       int    `json:"xray_port"`
+	XrayProxyURL                   string `json:"xray_proxy_url"`
+	XrayPrivateKey                 string `json:"xray_private_key"`
+	XrayPublicKey                  string `json:"xray_public_key"`
 }
 
 type InstanceConfigList struct {
