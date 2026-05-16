@@ -198,6 +198,11 @@ export default function Home() {
     setInstanceConfigs(configs)
   }
 
+  function getRegionLabel(regionCode) {
+    const region = lightsail_regions.find(r => r.value === regionCode)
+    return region ? region.label : regionCode
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       <Head>
@@ -244,13 +249,13 @@ export default function Home() {
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                     <span className="font-medium text-sm">{instance.instance_name}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{instance.region}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{getRegionLabel(instance.region)}</span>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                     <div className="text-muted-foreground">Region</div>
-                    <div>{instance.region}</div>
+                    <div>{getRegionLabel(instance.region)}</div>
                     <div className="text-muted-foreground">可用区</div>
                     <div>{instance.availability_zone}</div>
                     <div className="text-muted-foreground">静态 IP</div>
