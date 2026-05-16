@@ -49,17 +49,40 @@ function validateInstanceConfig(instance, index) {
     return `实例 ${name} 至少开启一个协议`
   }
 
-  const usedPorts = {}
-  if (instance.shadowsocks_enable) {
-    usedPorts[instance.shadowsocks_libev_port] = 'shadowsocks'
+  // hysteria_proxy_url 格式校验
+  if (instance.hysteria_enable) {
+    if (!/^https?:\/\//.test(instance.hysteria_proxy_url)) {
+      return `实例 ${name} hysteria_proxy_url 必须是有效的 http(s) URL`
+    }
   }
 
+  // xray 启用时需要校验 proxy_url、private_key、public_key
   if (instance.xray_enable) {
-    const protocol = usedPorts[instance.xray_port]
-    if (protocol) {
-      return `实例 ${name} 端口冲突: ${instance.xray_port} (${protocol} 与 xray)`
+    if (!/^https?:\/\//.test(instance.xray_proxy_url)) {
+      return `实例 ${name} xray_proxy_url 必须是有效的 http(s) URL`
     }
-    usedPorts[instance.xray_port] = 'xray'
+    if (!instance.xray_private_key || !instance.xray_public_key) {
+      return `实例 ${name} 启用 xray 时必须提供 xray_private_key 和 xray_public_key`
+    }
+  }
+
+  // 端口冲突检查
+  // hysteria2 固定使用 443
+  const HYSTERIA_PORT = 443
+
+  if (instance.hysteria_enable) {
+    if (instance.shadowsocks_enable && instance.shadowsocks_libev_port === HYSTERIA_PORT) {
+      return `实例 ${name} 端口冲突: hysteria2 固定使用 443，shadowsocks_libev_port 不能使用 443`
+    }
+    if (instance.xray_enable && instance.xray_port === HYSTERIA_PORT) {
+      return `实例 ${name} 端口冲突: hysteria2 固定使用 443，xray_port 不能使用 443`
+    }
+  }
+
+  if (instance.shadowsocks_enable && instance.xray_enable) {
+    if (instance.shadowsocks_libev_port === instance.xray_port) {
+      return `实例 ${name} 端口冲突: shadowsocks_libev_port (${instance.shadowsocks_libev_port}) 与 xray_port 不能相同`
+    }
   }
 
   return null
@@ -79,10 +102,10 @@ export default function Home() {
     fetch('/api/input')
       .then((res) => res.json())
       .then((data) => {
-        const normalizedInstances = (data.instances || []).map((instance) => normalizeInstanceConfig(instance))
+        const normalizedInstances = (data.combined_instances || []).map((instance) => normalizeInstanceConfig(instance))
         setData({
           ...data,
-          instances: normalizedInstances
+          combined_instances: normalizedInstances
         })
         setInstanceConfigs(normalizedInstances)
         setLoading(false)
@@ -111,7 +134,7 @@ export default function Home() {
       method: "POST",
       body: JSON.stringify({
         "auth_token": authToken,
-        "instances": instanceConfigs
+        "combined_instances": instanceConfigs
       })
     })
       .then((res) => res.json())
@@ -193,9 +216,9 @@ export default function Home() {
         )}
 
         {/* 查看模式 */}
-        {!loading && !editMode && (data?.instances || []).length > 0 && (
+        {!loading && !editMode && (data?.combined_instances || []).length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(data?.instances || []).map((instance) => (
+            {(data?.combined_instances || []).map((instance) => (
               <Card key={instance.instance_name} className="overflow-hidden">
                 <CardHeader className="bg-muted/40 border-b">
                   <div className="flex items-center gap-2">
@@ -273,7 +296,7 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && !editMode && (data?.instances || []).length === 0 && (
+        {!loading && !editMode && (data?.combined_instances || []).length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
             <div className="text-4xl">🌐</div>
             <p className="text-sm">暂无实例，开启编辑后添加</p>

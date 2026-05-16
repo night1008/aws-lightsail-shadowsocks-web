@@ -62,7 +62,7 @@ type InstanceConfig struct {
 }
 
 type InstanceConfigList struct {
-	Instances []*InstanceConfig `json:"instances"`
+	CombinedInstances []*InstanceConfig `json:"combined_instances"`
 }
 
 func InputHandler(w http.ResponseWriter, r *http.Request) {
@@ -86,9 +86,8 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 	var instanceConfigList InstanceConfigList
 	object, err := bucket.GetObject(inputObjectKey)
 	if err != nil {
-		// 处理最开始 key 不存在的情况
 		if ossObjectNotExistPattern.MatchString(err.Error()) {
-			instanceConfigList.Instances = make([]*InstanceConfig, 0)
+			instanceConfigList.CombinedInstances = make([]*InstanceConfig, 0)
 			response(w, http.StatusOK, instanceConfigList)
 		} else {
 			response(w, http.StatusInternalServerError, H{"error": err.Error()})
@@ -105,6 +104,10 @@ func InputHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &instanceConfigList); err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
+	}
+
+	if instanceConfigList.CombinedInstances == nil {
+		instanceConfigList.CombinedInstances = make([]*InstanceConfig, 0)
 	}
 
 	response(w, http.StatusOK, instanceConfigList)

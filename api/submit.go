@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"time"
 )
 
 type SubmitRequest struct {
-	AuthToken string            `json:"auth_token"`
-	Instances []*InstanceConfig `json:"instances"`
+	AuthToken         string            `json:"auth_token"`
+	CombinedInstances []*InstanceConfig `json:"combined_instances"`
 }
 
 func validateInstances(instances []*InstanceConfig) error {
@@ -55,7 +55,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response(w, http.StatusInternalServerError, H{"error": err.Error()})
 		return
@@ -72,7 +72,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := validateInstances(req.Instances); err != nil {
+	if err := validateInstances(req.CombinedInstances); err != nil {
 		response(w, http.StatusBadRequest, H{"error": err.Error()})
 		return
 	}
@@ -95,7 +95,7 @@ func SubmitHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	instanceConfigList := InstanceConfigList{
-		Instances: req.Instances,
+		CombinedInstances: req.CombinedInstances,
 	}
 	instancesBytes, err := json.Marshal(instanceConfigList)
 	if err != nil {
