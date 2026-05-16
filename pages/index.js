@@ -204,10 +204,69 @@ export default function Home() {
                     <span className="ml-auto text-xs text-muted-foreground">{instance.region}</span>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <pre className="text-xs text-muted-foreground p-4 whitespace-pre-wrap break-all leading-relaxed">
-                    {JSON.stringify(instance, null, 4)}
-                  </pre>
+                <CardContent className="p-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <div className="text-muted-foreground">Region</div>
+                    <div>{instance.region}</div>
+                    <div className="text-muted-foreground">可用区</div>
+                    <div>{instance.availability_zone}</div>
+                    <div className="text-muted-foreground">静态 IP</div>
+                    <div>{instance.create_static_ip ? <span className="text-green-600 font-medium">✓ 启用</span> : <span className="text-muted-foreground">—</span>}</div>
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${instance.shadowsocks_enable ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                      <span className="font-semibold text-sm">Shadowsocks</span>
+                      {instance.shadowsocks_enable ? <span className="text-xs text-green-600">已启用</span> : <span className="text-xs text-muted-foreground">未启用</span>}
+                    </div>
+                    {instance.shadowsocks_enable && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm ml-4">
+                        <div className="text-muted-foreground">端口</div>
+                        <div>{instance.shadowsocks_libev_port}</div>
+                        <div className="text-muted-foreground">加密方法</div>
+                        <div><code className="bg-muted px-1.5 py-0.5 rounded text-xs">{instance.shadowsocks_libev_method}</code></div>
+                        <div className="text-muted-foreground">密码长度</div>
+                        <div>{instance.shadowsocks_libev_password_length}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${instance.hysteria_enable ? 'bg-blue-500' : 'bg-muted-foreground/30'}`} />
+                      <span className="font-semibold text-sm">Hysteria2</span>
+                      {instance.hysteria_enable ? <span className="text-xs text-blue-600">已启用</span> : <span className="text-xs text-muted-foreground">未启用</span>}
+                    </div>
+                    {instance.hysteria_enable && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm ml-4">
+                        <div className="text-muted-foreground">密码长度</div>
+                        <div>{instance.hysteria_password_length}</div>
+                        <div className="text-muted-foreground">伪装 URL</div>
+                        <div className="truncate" title={instance.hysteria_proxy_url}><code className="bg-muted px-1.5 py-0.5 rounded text-xs">{instance.hysteria_proxy_url}</code></div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${instance.xray_enable ? 'bg-purple-500' : 'bg-muted-foreground/30'}`} />
+                      <span className="font-semibold text-sm">Xray</span>
+                      {instance.xray_enable ? <span className="text-xs text-purple-600">已启用</span> : <span className="text-xs text-muted-foreground">未启用</span>}
+                    </div>
+                    {instance.xray_enable && (
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm ml-4">
+                        <div className="text-muted-foreground">端口</div>
+                        <div>{instance.xray_port}</div>
+                        <div className="text-muted-foreground">伪装 URL</div>
+                        <div className="truncate" title={instance.xray_proxy_url}><code className="bg-muted px-1.5 py-0.5 rounded text-xs">{instance.xray_proxy_url}</code></div>
+                        <div className="text-muted-foreground">Private Key</div>
+                        <div className="truncate font-mono text-xs" title={instance.xray_private_key}>{instance.xray_private_key || <span className="text-muted-foreground">—</span>}</div>
+                        <div className="text-muted-foreground">Public Key</div>
+                        <div className="truncate font-mono text-xs" title={instance.xray_public_key}>{instance.xray_public_key || <span className="text-muted-foreground">—</span>}</div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
